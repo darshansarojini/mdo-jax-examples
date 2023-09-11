@@ -19,7 +19,7 @@ def c172_mp():
 
 def c172_inertial_loads(h, th, phi=jnp.deg2rad(0), ref_pt=jnp.zeros(3)):
 
-    g = 9.81
+    g = 9.803565306802405
     m, cg, I = c172_mp()
 
     F = jnp.zeros(3)
@@ -36,6 +36,7 @@ def c172_inertial_loads(h, th, phi=jnp.deg2rad(0), ref_pt=jnp.zeros(3)):
 if __name__ == "__main__":
     h = 1000
     th = np.deg2rad(5.)
-    F, M = c172_inertial_loads(h=h, th=th)
+    phi = np.deg2rad(3.)
+    F, M = c172_inertial_loads(h=h, th=th, phi=phi)
     print("Forces: ", F)
     print("Moments: ", M)
