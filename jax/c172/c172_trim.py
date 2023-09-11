@@ -2,15 +2,13 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-import sys
-sys.path.append('..')
 jax.config.update("jax_enable_x64", True)
 
-from aircraft_data.c172.c172_mp import c172_inertial_loads, c172_mp
-from aircraft_data.c172.c172_aerodynamics import c172_aerodynamics
-from aircraft_data.c172.c172_propulsion import c172_propulsion
+from c172_mp import c172_inertial_loads, c172_mp
+from c172_aerodynamics import c172_aerodynamics
+from c172_propulsion import c172_propulsion
 
-from solver.eom_6dof import eom_6dof_cg
+from eom_6dof import eom_6dof_cg
 
 @jax.jit
 def trim_residual(x0, Mach, h, prop_radius):
