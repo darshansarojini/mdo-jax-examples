@@ -2,6 +2,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+import sys
+sys.path.append('..')
+
 from aircraft_data.c172.c172_mp import c172_inertial_loads, c172_mp
 from aircraft_data.c172.c172_aerodynamics import c172_aerodynamics
 from aircraft_data.c172.c172_propulsion import c172_propulsion
