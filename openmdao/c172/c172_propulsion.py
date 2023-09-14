@@ -15,7 +15,8 @@ class C172Propulsion(om.ExplicitComponent):
         self.add_output('F', shape=(3,), units='N')  # Force vector
         self.add_output('M', shape=(3,), units='N*m')  # Moment vector
 
-        self.declare_partials('*', '*', method='fd')
+        self.declare_partials('F', 'omega', method='exact')
+        self.declare_partials('M', 'omega', method='exact')
 
     def compute(self, inputs, outputs):
         rho = 1.1116589850558272  # kg/m^3
@@ -39,6 +40,27 @@ class C172Propulsion(om.ExplicitComponent):
         outputs['F'] = F
         outputs['M'] = M
 
+    def compute_partials(self, inputs, partials):
+        rho = 1.1116589850558272  # kg/m^3
+        a = 336.43470050484996  # m/s
+        prop_radius = inputs['prop_radius']
+
+        V = inputs['Ma'][0] * a
+        omega = inputs['omega'][0]
+
+        J = (30 * V) / (omega * prop_radius)  # non-dimensional Advance ratio
+        dJ_domega = -30 * V /(omega ** 2 * prop_radius)
+
+        Ct_interp = -0.1692121 * J ** 2 + 0.03545196 * J + 0.10446359  # non-dimensional
+        dCt_domega = (-2 * 0.1692121 * J + 0.03545196) * dJ_domega
+
+        dT_domega = rho * prop_radius ** 2 / 225 * (2 * omega * Ct_interp + omega ** 2 * dCt_domega)
+        
+        partials['F', 'omega'][0]  = dT_domega
+
+        offset = inputs['ref_pt'] - inputs['thrust_origin']
+        partials['M', 'omega'] = np.cross(offset, partials['F', 'omega'][:,0])
+
 
 if __name__ == "__main__":
     prob = om.Problem()
@@ -48,6 +70,7 @@ if __name__ == "__main__":
 
     prob.setup()
     prob.run_model()
+    prob.check_partials(compact_print=True)
 
     print("Forces: ", prob['propulsion.F'])
     print("Moments: ", prob['propulsion.M'])

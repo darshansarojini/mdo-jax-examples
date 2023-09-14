@@ -17,7 +17,19 @@ class C172InertialLoads(om.ExplicitComponent):
         self.add_output('F', shape=(3,), units='N')  # Force vector
         self.add_output('M', shape=(3,), units='N*m')  # Moment vector
 
-        self.declare_partials('*', '*', method='fd')
+        self.declare_partials('F', ['th','phi'], method='exact')
+        self.declare_partials('M', ['th','phi'], method='exact')
+
+    def c172_mp(self):
+        m = 1043.2616
+        Ixx = 1285.3154166
+        Iyy = 1824.9309607
+        Izz = 2666.89390765
+
+        I = np.diag([Ixx, Iyy, Izz])
+        cg = np.zeros(3)
+
+        return m, cg, I
 
     def compute(self, inputs, outputs):
         g = 9.803565306802405
@@ -40,16 +52,28 @@ class C172InertialLoads(om.ExplicitComponent):
         outputs['F'] = F
         outputs['M'] = M
 
-    def c172_mp(self):
-        m = 1043.2616
-        Ixx = 1285.3154166
-        Iyy = 1824.9309607
-        Izz = 2666.89390765
+    def compute_partials(self, inputs, partials):
+        g = 9.803565306802405
+        th = inputs['th'][0]
+        phi = inputs['phi'][0]
+        m, cg, I = self.c172_mp()
 
-        I = np.diag([Ixx, Iyy, Izz])
-        cg = np.zeros(3)
+        offset = cg - inputs['ref_pt']
 
-        return m, cg, I
+        dF_dth = np.array([-m * g * np.cos(th),
+                      -m * g * np.sin(th) * np.sin(phi),
+                      -m * g * np.sin(th) * np.cos(phi)])
+        
+        dF_dphi = np.array([0.,
+                      m * g * np.cos(th) * np.cos(phi),
+                      -m * g * np.cos(th) * np.sin(phi)])
+        
+        partials['F', 'th']  = dF_dth
+        partials['F', 'phi'] = dF_dphi
+
+        partials['M', 'th']  = np.cross(offset, dF_dth)
+        partials['M', 'phi'] = np.cross(offset, dF_dphi)
+
 
 
 if __name__ == "__main__":
@@ -60,6 +84,7 @@ if __name__ == "__main__":
 
     prob.setup()
     prob.run_model()
+    prob.check_partials(compact_print=True)
 
     print("Forces: ", prob['inertial_loads.F'])
     print("Moments: ", prob['inertial_loads.M'])

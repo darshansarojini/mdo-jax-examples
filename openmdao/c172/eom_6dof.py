@@ -81,11 +81,15 @@ class Eom6DofCg(om.ExplicitComponent):
             phi) * np.cos(theta)
 
         residual_vector = np.array([du_dt, dv_dt, dw_dt,
-                                               dp_dt, dq_dt, dr_dt,
-                                               dtheta_dt, dphi_dt, dpsi_dt,
-                                               dx_dt, dy_dt, dz_dt])
+                                    dp_dt, dq_dt, dr_dt,
+                                    dtheta_dt, dphi_dt, dpsi_dt,
+                                    dx_dt, dy_dt, dz_dt])
 
         outputs['residual_vector'] = residual_vector
 
         trim_residual = np.linalg.norm(residual_vector[0:6])
         outputs['trim_residual'] = trim_residual
+
+        # def compute_partials(self, inputs, partials):
+        #     pass
+
