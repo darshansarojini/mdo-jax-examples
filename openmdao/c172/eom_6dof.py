@@ -19,6 +19,8 @@ class Eom6DofCg(om.ExplicitComponent):
         self.add_output('residual_vector', shape=(12,))
         self.add_output('trim_residual', shape=(1,))
 
+        self.declare_partials('*', '*', method='fd')
+
     def compute(self, inputs, outputs):
         m = inputs['m'][0]
         cg, I, Fa, Ma, Fp, Mp, Fi, Mi = (inputs[key] for key in ('cg', 'I', 'Fa', 'Ma', 'Fp', 'Mp', 'Fi', 'Mi'))

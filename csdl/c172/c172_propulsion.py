@@ -1,8 +1,9 @@
-import openmdao.api as om
+import csdl
+import python_csdl_backend as pcb
 import numpy as np
 
 class C172Propulsion(om.ExplicitComponent):
-    def setup(self):
+    def define(self):
         # Define inputs
         self.add_input('h', val=1000.0)  # Altitude
         self.add_input('Ma', val=0.1)  # Mach number

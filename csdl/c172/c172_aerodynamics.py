@@ -1,25 +1,17 @@
 import numpy as np
-import openmdao.api as om
+import csdl
+import python_csdl_backend as pcb
 
 
-class C172Aerodynamics(om.ExplicitComponent):
+class C172Aerodynamics(csdl.Model):
 
-    def setup(self):
+    def define(self):
         # Inputs
-        self.add_input('h', val=0.0)  # in meters
-        self.add_input('Ma', val=0.0)
-        self.add_input('alpha', val=0.0)  # in radians
-        self.add_input('delta_e', val=0.0)  # in radians
-        self.add_input('beta', val=0.0)  # in radians
-
-        # Outputs
-        self.add_output('F', shape=(3,))
-        self.add_output('M', shape=(3,))
-
-        self.declare_partials('*', '*', method='fd')
-
-    def compute(self, inputs, outputs):
-        h, Ma, alpha, delta_e, beta = inputs['h'][0], inputs['Ma'][0], inputs['alpha'][0], inputs['delta_e'][0], inputs['beta'][0]
+        h = self.create_input('h', val=0.0)  # in meters
+        Ma = self.create_input('Ma', val=0.0)
+        alpha = self.create_input('alpha', val=0.0)  # in radians
+        delta_e self.create_input('delta_e', val=0.0)  # in radians
+        beta = self.create_input('beta', val=0.0)  # in radians
 
         rho = 1.1116589850558272  # kg/m^3
         a = 336.43470050484996  # m/s
@@ -59,16 +51,16 @@ class C172Aerodynamics(om.ExplicitComponent):
         M_wind = np.array([l, m, n])
 
         DCM_bw = np.array([
-            [np.cos(alpha) * np.cos(beta), np.sin(beta), np.sin(alpha) * np.cos(beta)],
-            [-np.cos(alpha) * np.sin(beta), np.cos(beta), -np.sin(alpha) * np.sin(beta)],
-            [-np.sin(alpha), 0, np.cos(alpha)]
+            [csdl.cos(alpha) * csdl.cos(beta), csdl.sin(beta), csdl.sin(alpha) * csdl.cos(beta)],
+            [-csdl.cos(alpha) * csdl.sin(beta), csdl.cos(beta), -csdl.sin(alpha) * csdl.sin(beta)],
+            [-csdl.sin(alpha), 0., csdl.cos(alpha)]
         ])
 
-        F = np.dot(DCM_bw.T, F_wind)
-        M = np.dot(DCM_bw.T, M_wind)
+        F = csdl.dot(DCM_bw.T, F_wind)
+        M = csdl.dot(DCM_bw.T, M_wind)
 
-        outputs['F'] = F
-        outputs['M'] = M
+        self.register_output('F', F)
+        self.register_output('M', M)
 
 
 if __name__ == "__main__":

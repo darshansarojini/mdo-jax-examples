@@ -17,6 +17,8 @@ class C172InertialLoads(om.ExplicitComponent):
         self.add_output('F', shape=(3,), units='N')  # Force vector
         self.add_output('M', shape=(3,), units='N*m')  # Moment vector
 
+        self.declare_partials('*', '*', method='fd')
+
     def compute(self, inputs, outputs):
         g = 9.803565306802405
         m, cg, I = self.c172_mp()

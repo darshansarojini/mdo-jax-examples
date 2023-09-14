@@ -1,4 +1,5 @@
-import openmdao.api as om
+import csdl
+import python_csdl_backend as pcb
 from math import radians
 import numpy as np
 import time
@@ -9,23 +10,23 @@ from c172_mp import C172InertialLoads
 from c172_aerodynamics import C172Aerodynamics
 from eom_6dof import Eom6DofCg
 
-class TrimGroup(om.Group):
-    def setup(self):
+class TrimGroup(csdl.Model):
+    def define(self):
 
         # Add subcomponents
-        self.add_subsystem('c172vehicle', C172Vehicle(),
+        self.add_model('c172vehicle', C172Vehicle(),
                            # promotes=['h', 'Ma', 'ref_pt', 'beta']
                            )
-        self.add_subsystem('c172aero', C172Aerodynamics(),
+        self.add_model('c172aero', C172Aerodynamics(),
                            # promotes=['h', 'Ma', 'beta']
                            )
-        self.add_subsystem('c172prop', C172Propulsion(),
+        self.add_model('c172prop', C172Propulsion(),
                            # promotes=['h', 'Ma', 'ref_pt']
                            )
-        self.add_subsystem('c172inertial', C172InertialLoads(),
+        self.add_model('c172inertial', C172InertialLoads(),
                            # promotes=['h', 'ref_pt']
                            )
-        self.add_subsystem('eom_6dof', Eom6DofCg())
+        self.add_model('eom_6dof', Eom6DofCg())
 
         self.connect('c172vehicle.h', 'c172prop.h')
         self.connect('c172vehicle.h', 'c172aero.h')
@@ -119,19 +120,7 @@ if __name__ == "__main__":
                              # args=(Ma, h, prop_radius),
                              jac=jac,
                              options={'maxiter': 100},
-                             method='SLSQP',
-                             tol = 1e-8)
-    end = time.time()
-    print((end - start))
-    print(op_outputs)
-
-    start = time.time()
-    op_outputs = op.minimize(obj, np.array([th, delta_e, omega]),
-                             # args=(Ma, h, prop_radius),
-                             jac=jac,
-                             options={'maxiter': 100},
-                             method='SLSQP',
-                             tol=1e-8)
+                             method='SLSQP')
     end = time.time()
     print((end - start))
     print(op_outputs)

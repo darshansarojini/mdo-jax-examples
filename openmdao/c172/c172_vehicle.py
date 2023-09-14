@@ -24,6 +24,8 @@ class C172Vehicle(om.ExplicitComponent):
 
         self.add_output('state_vector', shape=(12,))
 
+        self.declare_partials('*', '*', method='fd')
+
     def compute(self, inputs, outputs, discrete_inputs=None, discrete_outputs=None):
         alpha = inputs['x'][0] * 1.
         delta_e = inputs['x'][1] * 1.
