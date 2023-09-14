@@ -2,53 +2,62 @@ import csdl
 import python_csdl_backend as pcb
 import numpy as np
 
-class C172Propulsion(om.ExplicitComponent):
+class C172Propulsion(csdl.Model):
+    def initialize(self):
+        self.parameters.declare(name='name', default='propulsion')
+        self.parameters.declare('num_nodes', default=1)
+        return
+
     def define(self):
-        # Define inputs
-        self.add_input('h', val=1000.0)  # Altitude
-        self.add_input('Ma', val=0.1)  # Mach number
-        self.add_input('omega', val=2800.0)  # RPM
-        self.add_input('prop_radius', val=0.94)  # Propeller radius
-        self.add_input('ref_pt', val=np.zeros(3))  # Reference point
-        self.add_input('thrust_origin', val=np.zeros(3))  # Thrust origin
+        name = self.parameters['name']
+        num_nodes = self.parameters['num_nodes']
 
-        # Define outputs
-        self.add_output('F', shape=(3,), units='N')  # Force vector
-        self.add_output('M', shape=(3,), units='N*m')  # Moment vector
+        # # Inputs constant across conditions (segments)
+        prop_radius = self.declare_variable(name='propeller_radius', shape=(1,), units='m')
+        ref_pt = self.declare_variable(name='ref_pt', shape=(3,), units='m', val=0.)
+        thrust_origin = self.declare_variable(name='thrust_origin', shape=(3,), val=0., units='m')
+        rho = self.create_input(name='rho', val=1.1116589850558272, shape=(1, ))  # kg/m^3
+        a = self.create_input(name='a', val=336.43470050484996, shape=(1, ))  # m/s
 
-        self.declare_partials('*', '*', method='fd')
+        # Inputs changing across conditions (segments)
+        omega = self.declare_variable('omega', shape=(num_nodes, 1), units='rpm')
+        mach_number = self.declare_variable('mach_number', shape=(num_nodes, 1), units='m/s')
 
-    def compute(self, inputs, outputs):
-        rho = 1.1116589850558272  # kg/m^3
-        a = 336.43470050484996  # m/s
-        prop_radius = inputs['prop_radius']
+        vtas = mach_number * csdl.expand(var=a, shape=(num_nodes, 1))
+        self.register_output(name='velocity', var=vtas)
 
-        V = inputs['Ma'][0] * a
-        omega_RAD = (inputs['omega'][0] * 2 * np.pi) / 60.0  # rad/s
+        omega_RAD = (omega * 2 * np.pi) / 60.0  # rad/s
+        J = (np.pi * vtas) / (omega_RAD * csdl.expand(prop_radius, shape=(num_nodes, 1)))  # non-dimensional Advance ratio
+        self.register_output(name='advance_ratio', var=J)
 
-        J = (np.pi * V) / (omega_RAD * prop_radius)  # non-dimensional Advance ratio
         Ct_interp = -0.1692121 * J ** 2 + 0.03545196 * J + 0.10446359  # non-dimensional
+        self.register_output(name='Ct', var=Ct_interp)
 
-        T = (2 / np.pi) ** 2 * rho * (omega_RAD * prop_radius) ** 2 * Ct_interp
+        T = (2 / np.pi) ** 2 * csdl.expand(var=rho, shape=(num_nodes, 1)) * (omega_RAD * csdl.expand(prop_radius, shape=(num_nodes, 1))) ** 2 * Ct_interp
+        self.register_output(name='T', var=T)
 
-        F = np.zeros(3)
-        F[0] = T
+        F = self.create_output(name='F_propulsion', shape=(num_nodes, 3))
+        F[:, 0] = T
+        F[:, 1] = T * 0.
+        F[:, 2] = T * 0.
 
-        offset = inputs['ref_pt'] - inputs['thrust_origin']
-        M = np.cross(F, offset)
-
-        outputs['F'] = F
-        outputs['M'] = M
+        offset = ref_pt - thrust_origin
+        M = self.create_output(name='M_propulsion', shape=(num_nodes, 3))
+        M[:, 0] = T * 0
+        for ii in range(num_nodes):
+            M[ii, 1] = F[ii, 0] * csdl.reshape(offset[2], (1, 1)) + F[ii, 2] * csdl.reshape(offset[0], (1, 1))
+        M[:, 2] = T * 0
+        return
 
 
 if __name__ == "__main__":
-    prob = om.Problem()
-    model = prob.model
+    sim = pcb.Simulator(C172Propulsion())
 
-    model.add_subsystem('propulsion', C172Propulsion())
+    sim['propeller_radius'] = 0.94  # m
+    sim['mach_number'] = 0.1
+    sim['omega'] = 2800.
+    sim.run()
 
-    prob.setup()
-    prob.run_model()
-
-    print("Forces: ", prob['propulsion.F'])
-    print("Moments: ", prob['propulsion.M'])
+    print('Thrust: ', sim['T'])
+    print('Forces: ', sim['F_propulsion'])
+    print('Thrust: ', sim['M_propulsion'])
