@@ -3,50 +3,68 @@ import python_csdl_backend as pcb
 import numpy as np
 
 class Eom6DofCg(csdl.Model):
-    def define(self):
-        # Inputs
-        state_vector = self.create_input('state_vector', shape=(12,))
-        vector = self.create_input('m', shape=(1,))
-        cg = self.create_input('cg', shape=(3,))
-        I = self.create_input('I', shape=(3,3))
-        Fa = self.create_input('Fa', shape=(3,))
-        Ma = self.create_input('Ma', shape=(3,))
-        Fp = self.create_input('Fp', shape=(3,))
-        Mp = self.create_input('Mp', shape=(3,))
-        Fi = self.create_input('Fi', shape=(3,))
-        Mi = self.create_input('Mi', shape=(3,))
+    eom_model_name = 'EulerEoM'
 
+    def initialize(self):
+        self.parameters.declare(name='name', default=self.eom_model_name)
+        self.parameters.declare('num_nodes', default=1)
+        return
+
+    def define(self):
+        num_nodes = self.parameters['num_nodes']
+
+        ref_pt = self.declare_variable(name='ref_pt', shape=(3,), units='m', val=0.)
+
+        # region Inputs
+        # Aerodynamic Loads
+        Fa = self.declare_variable(name='F_a', shape=(num_nodes, 3), units='N')
+        Ma = self.declare_variable(name='M_a', shape=(num_nodes, 3), units='N*m')
+        # Propulsion Loads
+        Fp = self.declare_variable(name='F_p', shape=(num_nodes, 3), units='N')
+        Mp = self.declare_variable(name='M_p', shape=(num_nodes, 3), units='N*m')
+        # Inertial Loads
+        Fi = self.declare_variable(name='F_i', shape=(num_nodes, 3), units='N')
+        Mi = self.declare_variable(name='M_i', shape=(num_nodes, 3), units='N*m')
+        # State vector
+        u = self.declare_variable(name='u', shape=(num_nodes, 1), units='m/s')
+        v = self.declare_variable(name='v', shape=(num_nodes, 1), units='m/s', val=0.)
+        w = self.declare_variable(name='w', shape=(num_nodes, 1), units='m/s', val=0.)
+        p = self.declare_variable(name='p', shape=(num_nodes, 1), units='rad/s', val=0.)
+        q = self.declare_variable(name='q', shape=(num_nodes, 1), units='rad/s', val=0.)
+        r = self.declare_variable(name='r', shape=(num_nodes, 1), units='rad/s', val=0.)
+        phi = self.declare_variable(name='phi', shape=(num_nodes, 1), units='rad', val=0.)
+        theta = self.declare_variable(name='theta', shape=(num_nodes, 1), units='rad')
+        psi = self.declare_variable(name='psi', shape=(num_nodes, 1), units='rad', val=0.)
+        x = self.declare_variable(name='x', shape=(num_nodes, 1), units='m', val=0.)
+        y = self.declare_variable(name='y', shape=(num_nodes, 1), units='m', val=0.)
+        z = self.declare_variable(name='z', shape=(num_nodes, 1), units='m', val=0.)
+        # Mass properties
+        m = self.declare_variable('m', shape=(1, ))
+        # cg = self.declare_variable('cg', shape=(3, ), val=0.)
+        I = self.declare_variable('I', shape=(3, 3))
+        # endregion
+
+        # region Calculations
         total_force = Fa + Fp + Fi
-        Fx = total_force[0]
-        Fy = total_force[1]
-        Fz = total_force[2]
+        Fx = total_force[:, 0]
+        Fy = total_force[:, 1]
+        Fz = total_force[:, 2]
 
         total_moment = Ma + Mp + Mi
-        L = total_moment[0]
-        M = total_moment[1]
-        N = total_moment[2]
+        L = total_moment[:, 0]
+        M = total_moment[:, 1]
+        N = total_moment[:, 2]
 
-        Ix = I[0, 0]
-        Iy = I[1, 1]
-        Iz = I[2, 2]
-        Jxz = I[0, 2]
-
-        u = state_vector[0]
-        v = state_vector[1]
-        w = state_vector[2]
-
-        p = state_vector[3]
-        q = state_vector[4]
-        r = state_vector[5]
-
-        phi = state_vector[6]
-        theta = state_vector[7]
-        psi = state_vector[8]
+        mass = csdl.expand(var=m, shape=(num_nodes, 1))
+        Ix = csdl.expand(csdl.reshape(I[0, 0], (1, )), shape=(num_nodes, 1))
+        Iy = csdl.expand(csdl.reshape(I[1, 1], (1, )), shape=(num_nodes, 1))
+        Iz = csdl.expand(csdl.reshape(I[2, 2], (1, )), shape=(num_nodes, 1))
+        Jxz = csdl.expand(csdl.reshape(I[0, 2], (1, )), shape=(num_nodes, 1))
 
         # Linear momentum equations
-        du_dt = Fx / m + r * v - q * w
-        dv_dt = Fy / m - r * u + p * w
-        dw_dt = Fz / m + q * u - p * v
+        du_dt = Fx / mass + r * v - q * w
+        dv_dt = Fy / mass - r * u + p * w
+        dw_dt = Fz / mass + q * u - p * v
 
         # Angular momentum equations
         dp_dt = (L * Iz + N * Jxz - q * r * (Iz ** 2 - Iz * Iy + Jxz ** 2) +
@@ -69,13 +87,22 @@ class Eom6DofCg(csdl.Model):
                  (csdl.cos(phi) * csdl.sin(theta) * csdl.sin(psi) - csdl.sin(phi) * csdl.cos(psi)) * w)
         dz_dt = -u * csdl.sin(theta) + v * csdl.sin(phi) * csdl.cos(theta) + w * csdl.cos(
             phi) * csdl.cos(theta)
+        # endregion
 
-        residual_vector = np.array([du_dt, dv_dt, dw_dt,
-                                               dp_dt, dq_dt, dr_dt,
-                                               dtheta_dt, dphi_dt, dpsi_dt,
-                                               dx_dt, dy_dt, dz_dt])
+        # region Outputs
+        res_vector = self.create_output(name='residual_vector', shape=(num_nodes, 12))
+        res_vector[:, 0] = du_dt
+        res_vector[:, 1] = dv_dt
+        res_vector[:, 2] = dw_dt
+        res_vector[:, 3] = dp_dt
+        res_vector[:, 4] = dq_dt
+        res_vector[:, 5] = dr_dt
+        res_vector[:, 6] = dphi_dt
+        res_vector[:, 7] = dtheta_dt
+        res_vector[:, 8] = dpsi_dt
+        res_vector[:, 9] = dx_dt
+        res_vector[:, 10] = dy_dt
+        res_vector[:, 11] = dz_dt
+        # endregion
 
-        self.register_output('residual_vector', residual_vector)
-
-        trim_residual = csdl.linalg.norm(residual_vector[0:6])
-        self.register_output('trim_residual', trim_residual)
+        return

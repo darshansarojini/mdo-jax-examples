@@ -67,15 +67,14 @@ if __name__ == "__main__":
     # omega = 1900.
 
     x0 = [th, delta_e, omega]
-    obj_r = trim_residual(x0=x0, Mach=Ma, h=h, prop_radius=prop_radius)
-    # obj_r, grad_obj_r = jax.value_and_grad(fun=trim_residual)(x0, Ma, h, prop_radius)
+    # obj_r = trim_residual(x0=x0, Mach=Ma, h=h, prop_radius=prop_radius)
+    obj_r, grad_obj_r = jax.value_and_grad(fun=trim_residual)(x0, Ma, h, prop_radius)
 
     print('EoM trim residual: ', obj_r)
-    # print('EoM trim residual gradient:', grad_obj_r)
+    print('EoM trim residual gradient: ', grad_obj_r)
 
     import scipy.optimize as op
     gradFunc_obj_r = jax.grad(trim_residual)
-
 
     start = time.time()
     op_outputs = op.minimize(trim_residual, x0,
@@ -87,26 +86,6 @@ if __name__ == "__main__":
     end = time.time()
     print((end-start))
     print(op_outputs)
-
-    start = time.time()
-    op_outputs = op.minimize(trim_residual, x0,
-                             args=(Ma, h, prop_radius),
-                             jac=gradFunc_obj_r,
-                             options={'maxiter': 100},
-                             method='SLSQP',
-                             tol=1e-8)
-    end = time.time()
-    print((end - start))
-    print(op_outputs)
-
-    # start = time.time()
-    # op_outputs = op.minimize(trim_residual, x0,
-    #                          args=(Ma, h, prop_radius),
-    #                          jac=gradFunc_obj_r,
-    #                          options={'maxiter': 100})
-    # end = time.time()
-    # print((end - start) / 131)
-    # print(op_outputs)
 
     # jacFunc_vec_obj_r = jax.jacfwd(fun=trim_residual)
     # results = op.least_squares(trim_residual,

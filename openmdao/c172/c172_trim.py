@@ -116,7 +116,6 @@ if __name__ == "__main__":
     import scipy.optimize as op
     start = time.time()
     op_outputs = op.minimize(obj, np.array([th, delta_e, omega]),
-                             # args=(Ma, h, prop_radius),
                              jac=jac,
                              options={'maxiter': 100},
                              method='SLSQP',
@@ -125,16 +124,16 @@ if __name__ == "__main__":
     print((end - start))
     print(op_outputs)
 
-    start = time.time()
-    op_outputs = op.minimize(obj, np.array([th, delta_e, omega]),
-                             # args=(Ma, h, prop_radius),
-                             jac=jac,
-                             options={'maxiter': 100},
-                             method='SLSQP',
-                             tol=1e-8)
-    end = time.time()
-    print((end - start))
-    print(op_outputs)
+    # start = time.time()
+    # op_outputs = op.minimize(obj, np.array([th, delta_e, omega]),
+    #                          # args=(Ma, h, prop_radius),
+    #                          jac=jac,
+    #                          options={'maxiter': 100},
+    #                          method='SLSQP',
+    #                          tol=1e-8)
+    # end = time.time()
+    # print((end - start))
+    # print(op_outputs)
 
 
     # start = time.time()
