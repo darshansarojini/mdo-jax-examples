@@ -86,6 +86,7 @@ class C172Trim(csdl.Model):
 
 
 if __name__ == "__main__":
+    start = time.time()
     sim = pcb.Simulator(C172Trim())
 
     sim['mach_number'] = 0.1
@@ -95,14 +96,14 @@ if __name__ == "__main__":
     th = np.deg2rad(8.739244543508379)
     delta_e = np.deg2rad(-7.815234882597328)
     omega = 1734.40209574
-    sim['theta'] = th
-    sim['delta_e'] = delta_e
-    sim['omega'] = omega
-
-    sim.run()
-    sim.compute_total_derivatives()
-    print('EoM trim residual: ', sim['trim_residual'])
-    print('EoM trim residual gradient: ', sim.objective_gradient())
+    # sim['theta'] = th
+    # sim['delta_e'] = delta_e
+    # sim['omega'] = omega
+    #
+    # sim.run()
+    # sim.compute_total_derivatives()
+    # print('EoM trim residual: ', sim['trim_residual'])
+    # print('EoM trim residual gradient: ', sim.objective_gradient())
 
     def obj(x):
         sim.update_design_variables(x)
@@ -117,12 +118,12 @@ if __name__ == "__main__":
 
 
     import scipy.optimize as op
-    start = time.time()
+
     op_outputs = op.minimize(obj, np.array([th, delta_e, omega]),
                              jac=jac,
                              options={'maxiter': 100},
                              method='SLSQP',
                              tol=1e-8)
     end = time.time()
-    print('', (end - start))
+    print('Runtime (s): ', (end - start))
     print(op_outputs)

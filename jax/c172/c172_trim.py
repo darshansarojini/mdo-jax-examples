@@ -81,12 +81,12 @@ if __name__ == "__main__":
 
     import scipy.optimize as op
     # start = time.time()
-    op_outputs = op.minimize(trim_residual, x0,
-                             args=(Ma, h, prop_radius),
-                             jac=gradFunc_obj_r,
-                             options={'maxiter': 1},
-                             method='SLSQP',
-                             tol=1e-8)
+    # op_outputs = op.minimize(trim_residual, x0,
+    #                          args=(Ma, h, prop_radius),
+    #                          jac=gradFunc_obj_r,
+    #                          options={'maxiter': 1},
+    #                          method='SLSQP',
+    #                          tol=1e-8)
     # end = time.time()
     # print('Runtime (s):', (end - start))
     # print(op_outputs)
