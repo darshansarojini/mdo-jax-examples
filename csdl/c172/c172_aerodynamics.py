@@ -89,7 +89,7 @@ class C172Aerodynamics(csdl.Model):
 
             F[ii, :] = csdl.reshape(csdl.matvec(csdl.transpose(DCM_bw), csdl.reshape(F_wind[ii, :], (3,))), (1, 3))
             M[ii, :] = csdl.reshape(csdl.matvec(csdl.transpose(DCM_bw), csdl.reshape(M_wind[ii, :], (3,))), (1, 3))
-
+            # todo: optimized einsum this
         return
 
 

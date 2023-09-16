@@ -1,12 +1,13 @@
+import jax
 import jax.numpy as jnp
 import numpy as np
 from scipy import interpolate
 
 
+@jax.jit
+def c172_propulsion(Ma, omega, prop_radius, ref_pt=jnp.zeros(3), thrust_origin=jnp.zeros(3)):
 
-
-def c172_propulsion(h, Ma, omega, prop_radius, ref_pt=jnp.zeros(3), thrust_origin=jnp.zeros(3)):
-
+    num_nodes = omega.shape[0]
     rho = 1.1116589850558272  # kg/m^3
     a = 336.43470050484996  # m/s
 
@@ -30,8 +31,8 @@ def c172_propulsion(h, Ma, omega, prop_radius, ref_pt=jnp.zeros(3), thrust_origi
     T = (2 / jnp.pi) ** 2 * rho * \
         (omega_RAD * prop_radius) ** 2 * Ct_interp
 
-    F = jnp.zeros(3)
-    F = F.at[0].set(T)
+    F = jnp.zeros((num_nodes, 3))
+    F = F.at[:, 0].set(T)
 
     offset = ref_pt - thrust_origin
     M = jnp.cross(F, offset)
@@ -39,10 +40,9 @@ def c172_propulsion(h, Ma, omega, prop_radius, ref_pt=jnp.zeros(3), thrust_origi
 
 
 if __name__ == "__main__":
-    h = 1000 # 12000 ft
-    Ma = 0.1
+    Ma = np.full(shape=(3,), fill_value=0.1)
     prop_radius = 0.94  # m
-    omega = 2800  # RPM
-    F, M = c172_propulsion(h=h, Ma=Ma, omega=omega, prop_radius=prop_radius)
+    omega = np.full(shape=(3,), fill_value=2800.)
+    F, M = c172_propulsion(Ma=Ma, omega=omega, prop_radius=prop_radius)
     print("Forces: ", F)
     print("Moments: ", M)

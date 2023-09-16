@@ -65,12 +65,16 @@ class C172InertialLoads(csdl.Model):
         F[:, 1] = mass * g * csdl.cos(th) * csdl.sin(ph)
         F[:, 2] = mass * g * csdl.cos(th) * csdl.cos(ph)
 
-        r_vec = cg_vector - ref_pt
-        r_vec = csdl.reshape(r_vec, (num_nodes, 3))
+        r_vec = csdl.expand(cg_vector - ref_pt, (num_nodes, 3), 'i->ji')
+        # r_vec = cg_vector - ref_pt
+        # r_vec = csdl.reshape(r_vec, new_shape=(num_nodes, 3))
 
-        M = self.create_output(name='M_inertial', shape=(num_nodes, 3))
-        for n in range(num_nodes):
-            M[n, :] = csdl.cross(r_vec, F[n, :], axis=1)
+        # M = self.create_output(name='M_inertial', shape=(num_nodes, 3))
+        # for n in range(num_nodes):
+        #     M[n, :] = csdl.cross(r_vec, F[n, :], axis=1)
+
+        M = csdl.cross(r_vec, F, axis=1)
+        self.register_output('M_inertial', M)
         # endregion
 
 

@@ -38,23 +38,23 @@ class C172Trim(csdl.Model):
         u = mach_number * a
         self.register_output(name='u', var=u)
 
-        self.add(submodel=C172InertialLoads(),
+        self.add(submodel=C172InertialLoads(num_nodes=num_nodes),
                  name='inertial_loads', promotes=[])
         self.connect('theta', 'inertial_loads.theta')
 
-        self.add(submodel=C172Aerodynamics(),
+        self.add(submodel=C172Aerodynamics(num_nodes=num_nodes),
                  name='aerodynamic_loads', promotes=[])
         self.connect('mach_number', 'aerodynamic_loads.mach_number')
         self.connect('theta', 'aerodynamic_loads.alpha')
         self.connect('delta_e', 'aerodynamic_loads.delta_e')
 
-        self.add(submodel=C172Propulsion(),
+        self.add(submodel=C172Propulsion(num_nodes=num_nodes),
                  name='propulsion_loads', promotes=[])
         self.connect('prop_radius', 'propulsion_loads.propeller_radius')
         self.connect('mach_number', 'propulsion_loads.mach_number')
         self.connect('omega', 'propulsion_loads.omega')
 
-        self.add(submodel=Eom6DofCg(),
+        self.add(submodel=Eom6DofCg(num_nodes=num_nodes),
                  name='EoM', promotes=[])
         self.connect('inertial_loads.F_inertial', 'EoM.F_i')
         self.connect('inertial_loads.M_inertial', 'EoM.M_i')
@@ -86,16 +86,17 @@ class C172Trim(csdl.Model):
 
 
 if __name__ == "__main__":
-    start = time.time()
-    sim = pcb.Simulator(C172Trim())
+    num_nodes = 100
+
+    sim = pcb.Simulator(C172Trim(num_nodes=num_nodes))
 
     sim['mach_number'] = 0.1
     sim['prop_radius'] = 0.94  # m
 
     # Good guess
-    th = np.deg2rad(8.739244543508379)
-    delta_e = np.deg2rad(-7.815234882597328)
-    omega = 1734.40209574
+    th = np.full(shape=(num_nodes,), fill_value=np.deg2rad(8.739244543508379))
+    delta_e = np.full(shape=(num_nodes,), fill_value=np.deg2rad(-7.815234882597328))
+    omega = np.full(shape=(num_nodes,), fill_value=1734.40209574)
     # sim['theta'] = th
     # sim['delta_e'] = delta_e
     # sim['omega'] = omega
@@ -119,11 +120,12 @@ if __name__ == "__main__":
 
     import scipy.optimize as op
 
-    op_outputs = op.minimize(obj, np.array([th, delta_e, omega]),
+    start = time.time()
+    op_outputs = op.minimize(obj, np.concatenate([th, delta_e, omega]),
                              jac=jac,
-                             options={'maxiter': 100},
+                             options={'maxiter': 2000},
                              method='SLSQP',
-                             tol=1e-8)
+                             tol=1e-16)
     end = time.time()
     print('Runtime (s): ', (end - start))
     print(op_outputs)
