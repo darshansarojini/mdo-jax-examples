@@ -1,76 +1,33 @@
 import jax.numpy as jnp
 import jax
-import copy
-from jax import custom_jvp, partials
-
-# @custom_jvp
-def NewtonSolver(y0, res, tol=1e-6, maxiter=100):
-    '''
-    Newton solver taking a vector input 
-    with or without known index pointer vector (as in csc/csr).
-
-    Parameters
-    ----------
-    y0 : np.array
-        initial guess vector containing all state vectors
-    res : function
-        function that returns a vector containing all residual vectors
-        res = y - r(y)
-    tol: float
-        tolerance for each residual norm
-    maxiter: int
-        maximum number of iterations
-    '''
-    y = y0
-    iter = 0
-    while (iter < maxiter):
-        r_vec, ind_ptr = res(y)
-        res_norm = jnp.linalg.norm(r_vec)
-        if res_norm < tol:
-            converged = True
-            break      
-
-        J = jax.jacfwd(res)(y)[0]
-        # print(J)
-        # p = jax.scipy.sparse.linalg.gmres(lambda x: -J@x, r)[0]
-        p = jnp.linalg.solve(J, r_vec)
-        y -= p
-        iter += 1
 
 
-    # # OR checking tol for each residual separately
-    # while (iter < maxiter):
-    #     converged = True
-    #     r_vec, ind_ptr = res(y)
-    #     for i in range(len(ind_ptr)-1):
-    #         res_val = r_vec.at[ind_ptr[i]:ind_ptr[i+1]].get()
-    #         res_norm = jnp.linalg.norm(res_val)
-    #         if res_norm > tol:
-    #             converged = False  
+def NewtonSolver(x_0, f, tol=1e-5, max_iter=15):
+    """
+    A multivariate Newton root-finding routine.
 
-    #     if converged:
-    #         break
-    #     J = jax.jacfwd(res)(y)[0]
-    #     # print(J)
-    #     # p = jax.scipy.sparse.linalg.gmres(lambda x: -J@x, r)[0]
-    #     p = jnp.linalg.solve(J, r_vec)  
-    #     y -= p
-    #     iter += 1
-
-    res_evals = iter + 1
+    """
+    x = x_0
+    f_jac = jax.jacobian(f)
+    @jax.jit
+    def q(x):
+        " Updates the current guess. "
+        return x - jnp.linalg.solve(f_jac(x), f(x))
+    error = tol + 1
+    n = 0
+    converged=True
+    while error > tol:
+        n += 1
+        if(n > max_iter):
+            converged=False
+        y = q(x)
+        error = jnp.linalg.norm(x - y)
+        x = y
+        # print(f'iteration {n}, error = {error}')
     solver = 'Newton'
-    print_solver_outputs(solver, converged, res_norm, iter, res_evals)
+    print_solver_outputs(solver, converged, error, n, n+1)
+    return x
 
-    return y
-
-# @NewtonSolver.defjvp
-# def NewtonSolver_jvp(primals, tangents):
-#   y0, res, tol, maxiter = primals
-#   x_dot, res_dot, tol_dot, maxiter_dot  = tangents
-#   primal_out = NewtonSolver(y0, res, tol, maxiter)
-#   J = jax.jacfwd(res)(primal_out)[0]
-#   tangent_out = jnp.cos(x) * x_dot
-#   return primal_out, tangent_out
 
 def NLBGSSolver(y0, res, tol=1e-6, maxiter=100):
     '''
