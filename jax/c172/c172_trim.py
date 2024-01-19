@@ -2,6 +2,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import time
+import scipy.optimize as op
+from numpy.random import RandomState
 
 jax.config.update("jax_enable_x64", True)
 
@@ -11,7 +13,7 @@ from c172_propulsion import c172_propulsion
 
 from eom_6dof import eom_6dof_cg
 
-@jax.jit
+
 def trim_residual(x0, Mach, prop_radius):
 
     num_nodes = Mach.shape[0]
@@ -49,7 +51,8 @@ def trim_residual(x0, Mach, prop_radius):
 
 if __name__ == "__main__":
     a = 336.43470050484996  # m/s
-    num_nodes = 100
+    num_nodes = 10
+    num_timing_runs = 10
 
     Ma = jnp.full(shape=(num_nodes,), fill_value=0.1)
     prop_radius = 0.94  # m
@@ -59,50 +62,56 @@ if __name__ == "__main__":
     delta_e = jnp.full(shape=(num_nodes,), fill_value=np.deg2rad(-7.815234882597328))
     omega = jnp.full(shape=(num_nodes,), fill_value=1734.40209574)
 
+    x0 = jnp.hstack((th, delta_e, omega))
+
+    start = time.time()  
+    objFunc = jax.jit(trim_residual)
+    gradFunc = jax.jit(jax.grad(trim_residual))
+    obj_r = objFunc(x0=x0, Mach=Ma, prop_radius=prop_radius).block_until_ready()
+    grad_obj_r = gradFunc(x0, Ma, prop_radius).block_until_ready()
+    end = time.time()  
+    compile_time = end - start
+
     # # Bad guess
     # th = np.deg2rad(5.)
     # delta_e = np.deg2rad(-5.)
     # omega = 1900.
 
-    # start = time.time()
-    x0 = jnp.hstack((th, delta_e, omega))
-    # x0 = jnp.array([ 1.659e-01, -1.672e-01,  1.761e+03,  1.659e-01, -1.672e-01,
-    #         1.761e+03,  1.659e-01, -1.672e-01,  1.761e+03,  1.646e-01,
-    #        -6.416e-01,  1.757e+03])
-    obj_r = trim_residual(x0=x0, Mach=Ma, prop_radius=prop_radius)
+    rng = np.random.default_rng(seed=25678)
 
-    gradFunc_obj_r = jax.grad(trim_residual)
-    grad_obj_r = gradFunc_obj_r(x0, Ma, prop_radius)
-    # end = time.time()
-    # print('Runtime (s):', (end - start))
-    # obj_r,  = jax.value_and_grad(fun=trim_residual)(x0, Ma, prop_radius)
+    th_list = np.array(rng.integers(1, 10, size=num_timing_runs), dtype=float)
+    delta_e_list = np.array(rng.integers(-10, 2, size=num_timing_runs), dtype=float)
+    omega_list = np.array(rng.integers(1200, 2000, size=num_timing_runs), dtype=float)
 
-    print('EoM trim residual: ', obj_r)
-    print('EoM trim residual gradient: ', grad_obj_r)
 
-    import scipy.optimize as op
-    # start = time.time()
-    # op_outputs = op.minimize(trim_residual, x0,
-    #                          args=(Ma, prop_radius),
-    #                          jac=gradFunc_obj_r,
-    #                          options={'maxiter': 1},
-    #                          method='SLSQP',
-    #                          tol=1e-8)
-    # end = time.time()
-    # print('Runtime (s):', (end - start))
-    # print(op_outputs)
+    start = time.time()  
+    success_check = 0
+    for ii in range(num_timing_runs):
 
-    start = time.time()
-    op_outputs = op.minimize(trim_residual, x0,
-                             args=(Ma, prop_radius),
-                             jac=gradFunc_obj_r,
-                             options={'maxiter': 2000},
-                             method='SLSQP',
-                             tol=1e-16)
+        th = np.full(shape=(num_nodes,), fill_value=np.deg2rad(th_list[ii]))
+        delta_e = np.full(shape=(num_nodes,), fill_value=np.deg2rad(delta_e_list[ii]))
+        omega = np.full(shape=(num_nodes,), fill_value=omega_list[ii])
+
+        x0 = np.hstack((th, delta_e, omega))
+
+        # print('EoM trim residual: ', obj_r)
+        # print('EoM trim residual gradient: ', grad_obj_r)
+    
+        op_outputs = op.minimize(objFunc, x0,
+                                args=(Ma, prop_radius),
+                                jac=gradFunc,
+                                options={'maxiter': 2000},
+                                method='SLSQP',
+                                tol=1e-16)
+        success_check += 1
+        # print(op_outputs)
+    assert success_check == num_timing_runs
+
     end = time.time()
-    print('Runtime (s):', (end - start))
-    print(op_outputs)
+    runtime = (end - start)/num_timing_runs
 
+    print('Compile time (s):', compile_time)
+    print('Runtime (s):', runtime)
 
 
     # jacFunc_vec_obj_r = jax.jacfwd(fun=trim_residual)
